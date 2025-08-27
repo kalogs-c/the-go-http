@@ -53,13 +53,9 @@ func main() {
 			log.Fatalln(err)
 		}
 
-		fmt.Println("connection accepted!")
-
 		for line := range getLinesFromReader(conn) {
 			fmt.Println(line)
 		}
-
-		fmt.Println("connection closed!")
 		conn.Close()
 	}
 }
