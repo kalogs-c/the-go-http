@@ -1,44 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"net"
+
+	"github.com/kalogs-c/the-go-http/internal/request"
 )
-
-func getLinesFromReader(file io.ReadCloser) <-chan string {
-	ch := make(chan string)
-
-	go func() {
-		currentLine := ""
-		for {
-			content := make([]byte, 8)
-			_, err := file.Read(content)
-			if err != nil && err != io.EOF {
-				panic(err)
-			}
-
-			if err == io.EOF {
-				close(ch)
-				break
-			}
-
-			if readAt := bytes.IndexByte(content, '\n'); readAt != -1 {
-				currentLine += string(content[:readAt])
-				ch <- currentLine
-
-				content = content[readAt+1:]
-				currentLine = ""
-			}
-
-			currentLine += string(content)
-		}
-	}()
-
-	return ch
-}
 
 func main() {
 	listener, err := net.Listen("tcp", ":42069")
@@ -53,9 +21,16 @@ func main() {
 			log.Fatalln(err)
 		}
 
-		for line := range getLinesFromReader(conn) {
-			fmt.Println(line)
+		r, err := request.RequestFromReader(conn)
+		if err != nil {
+			log.Fatalln(err)
 		}
+
+		fmt.Println("Request line:")
+		fmt.Printf(" - Method:  %s\n", r.RequestLine.Method)
+		fmt.Printf(" - Target:  %s\n", r.RequestLine.RequestTarget)
+		fmt.Printf(" - Version: %s\n", r.RequestLine.HttpVersion)
+
 		conn.Close()
 	}
 }
