@@ -22,11 +22,11 @@ func newRequest() *Request {
 }
 
 const (
-	separator  string = "\r\n"
+	crlf       string = "\r\n"
 	bufferSize int    = 8
 )
 
-var ERROR_READ_ON_DONE_STATE error = errors.New("trying to read data in a done state")
+var ErrorReadOnDoneState error = errors.New("trying to read data in a done state")
 
 func (r *Request) parse(data []byte) (int, error) {
 	switch r.state {
@@ -44,7 +44,7 @@ func (r *Request) parse(data []byte) (int, error) {
 		r.state = requestStateDone
 		return bytesRead, nil
 	case requestStateDone:
-		return 0, ERROR_READ_ON_DONE_STATE
+		return 0, ErrorReadOnDoneState
 	default:
 		return 0, errors.New("unknown state")
 	}

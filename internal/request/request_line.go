@@ -3,7 +3,6 @@ package request
 import (
 	"errors"
 	"strings"
-	"unsafe"
 )
 
 type RequestLine struct {
@@ -13,9 +12,9 @@ type RequestLine struct {
 }
 
 var (
-	ERROR_REQUEST_LINE_INCOMPLETE  error = errors.New("number of parts does not match, it should be 'METHOD REQUEST-TARGET HTTP-VERSION'")
-	ERROR_METHOD_NOT_ALLOWED       error = errors.New("the method should only contains capital alphabetic characters")
-	ERROR_HTTP_VERSION_NOT_ALLOWED error = errors.New("http version is not suported")
+	ErrorRequestLineIncomplete error = errors.New("number of parts does not match, it should be 'METHOD REQUEST-TARGET HTTP-VERSION'")
+	ErrorMethodNotAllowed      error = errors.New("the method should only contains capital alphabetic characters")
+	ErrorHttpVersionNotAllowed error = errors.New("http version is not suported")
 )
 
 func isMethodAllowed(method string) bool {
@@ -29,7 +28,7 @@ func isHttpVersionAllowed(httpVersion string) bool {
 }
 
 func parseRequestLine(content string) (*RequestLine, int, string, error) {
-	i := strings.Index(content, separator)
+	i := strings.Index(content, crlf)
 	if i == -1 {
 		return nil, 0, "", nil
 	}
@@ -37,7 +36,7 @@ func parseRequestLine(content string) (*RequestLine, int, string, error) {
 	startLine := content[:i]
 	parts := strings.Split(startLine, " ")
 	if len(parts) != 3 {
-		return nil, 0, "", ERROR_REQUEST_LINE_INCOMPLETE
+		return nil, 0, "", ErrorRequestLineIncomplete
 	}
 
 	versionParts := strings.Split(parts[2], "/")
@@ -49,13 +48,14 @@ func parseRequestLine(content string) (*RequestLine, int, string, error) {
 	}
 
 	if !isMethodAllowed(reqLine.Method) {
-		return nil, 0, "", ERROR_METHOD_NOT_ALLOWED
+		return nil, 0, "", ErrorMethodNotAllowed
 	}
 
 	if !isHttpVersionAllowed(reqLine.HttpVersion) {
-		return nil, 0, "", ERROR_HTTP_VERSION_NOT_ALLOWED
+		return nil, 0, "", ErrorHttpVersionNotAllowed
 	}
 
-	restOfMsg := content[i+len(separator):]
-	return &reqLine, int(unsafe.Sizeof(startLine)), restOfMsg, nil
+	read := i + len(crlf)
+	restOfMsg := content[read:]
+	return &reqLine, read, restOfMsg, nil
 }

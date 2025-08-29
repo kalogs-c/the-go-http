@@ -70,7 +70,7 @@ func TestParseRequestLine(t *testing.T) {
 		numBytesPerRead: 10,
 	}
 	_, err = RequestFromReader(reader)
-	require.ErrorIs(t, err, ERROR_REQUEST_LINE_INCOMPLETE)
+	require.ErrorIs(t, err, ErrorRequestLineIncomplete)
 
 	// Test: Invalid method (out of order) request line
 	reader = &chunkReader{
@@ -78,7 +78,7 @@ func TestParseRequestLine(t *testing.T) {
 		numBytesPerRead: 4,
 	}
 	_, err = RequestFromReader(reader)
-	require.ErrorIs(t, err, ERROR_METHOD_NOT_ALLOWED)
+	require.ErrorIs(t, err, ErrorMethodNotAllowed)
 
 	// TEST: Invalid HTTP version
 	reader = &chunkReader{
@@ -86,5 +86,5 @@ func TestParseRequestLine(t *testing.T) {
 		numBytesPerRead: 7,
 	}
 	_, err = RequestFromReader(reader)
-	require.ErrorIs(t, err, ERROR_HTTP_VERSION_NOT_ALLOWED)
+	require.ErrorIs(t, err, ErrorHttpVersionNotAllowed)
 }
