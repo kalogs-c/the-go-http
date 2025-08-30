@@ -2,6 +2,7 @@ package headers
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -13,7 +14,55 @@ func NewHeaders() Headers {
 
 const crlf string = "\r\n"
 
-var ErrorExtraSpaceBeforeColon = errors.New("extra space before colon")
+var (
+	ErrorExtraSpaceBeforeColon = errors.New("extra space before colon")
+	ErrorInvalidCharOnFieldKey = errors.New("invalid char on field")
+)
+
+var allowedCharsSet map[rune]bool = craftAllowedChars()
+
+func craftAllowedChars() map[rune]bool {
+	allowedChars := "!#$%&'*+-.^_`|~"
+	for c := '0'; c <= '9'; c++ {
+		allowedChars += string(c)
+	}
+
+	for c := 'a'; c <= 'z'; c++ {
+		allowedChars += string(c)
+	}
+
+	for c := 'A'; c <= 'Z'; c++ {
+		allowedChars += string(c)
+	}
+
+	allowedCharsSet := make(map[rune]bool)
+	for _, c := range allowedChars {
+		allowedCharsSet[c] = true
+	}
+
+	return allowedCharsSet
+}
+
+func validateHeaderField(field string) error {
+	if field[len(field)-1] == ' ' {
+		return ErrorExtraSpaceBeforeColon
+	}
+
+	i := strings.IndexFunc(field, func(c rune) bool {
+		_, ok := allowedCharsSet[c]
+		return !ok
+	})
+
+	if i != -1 {
+		errorMsg := fmt.Sprintf("invalid char '%c' at index %d: %s\n", field[i], i, field)
+		errorMsg += fmt.Sprintf("%*s", len(errorMsg)+i-len(field), "^")
+		errorMsg += " invalid char here"
+
+		return errors.Join(ErrorInvalidCharOnFieldKey, errors.New(errorMsg))
+	}
+
+	return nil
+}
 
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	i := strings.Index(string(data), crlf)
@@ -26,17 +75,18 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 
 	rawContent := strings.TrimSpace(string(data[:i]))
 	parts := strings.SplitN(rawContent, ":", 2)
-
-	field := parts[0]
-	value := strings.TrimSpace(parts[1])
-
-	if field[len(field)-1] == ' ' {
-		return 0, false, ErrorExtraSpaceBeforeColon
+	if err := validateHeaderField(parts[0]); err != nil {
+		return 0, false, err
 	}
 
-	field = strings.TrimSpace(field)
+	field := strings.TrimSpace(strings.ToLower(parts[0]))
+	value := strings.TrimSpace(parts[1])
 
-	h[field] = value
+	if _, ok := h[field]; ok {
+		h[field] += ", " + value
+	} else {
+		h[field] = value
+	}
 
 	return i + len(crlf), false, nil
 }
