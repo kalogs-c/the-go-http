@@ -3,22 +3,30 @@ package request
 import (
 	"errors"
 	"io"
+
+	"github.com/kalogs-c/the-go-http/internal/headers"
 )
 
 type requestState int
 
 const (
 	requestStateInitialized requestState = iota
+	requestStateParsingHeaders
 	requestStateDone
 )
 
 type Request struct {
 	RequestLine RequestLine
+	Headers     headers.Headers
+	Body        []byte
 	state       requestState
 }
 
 func newRequest() *Request {
-	return &Request{state: requestStateInitialized}
+	return &Request{
+		Headers: headers.NewHeaders(),
+		state:   requestStateInitialized,
+	}
 }
 
 const (
@@ -41,6 +49,18 @@ func (r *Request) parse(data []byte) (int, error) {
 		}
 
 		r.RequestLine = *reqLine
+		r.state = requestStateParsingHeaders
+		return bytesRead, nil
+	case requestStateParsingHeaders:
+		bytesRead, done, err := r.Headers.Parse(data)
+		if err != nil {
+			return 0, err
+		}
+
+		if !done {
+			return bytesRead, nil
+		}
+
 		r.state = requestStateDone
 		return bytesRead, nil
 	case requestStateDone:
