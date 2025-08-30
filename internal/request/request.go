@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 
+	"github.com/kalogs-c/the-go-http/internal/constraints"
 	"github.com/kalogs-c/the-go-http/internal/headers"
 )
 
@@ -29,17 +30,12 @@ func newRequest() *Request {
 	}
 }
 
-const (
-	crlf       string = "\r\n"
-	bufferSize int    = 8
-)
-
 var ErrorReadOnDoneState error = errors.New("trying to read data in a done state")
 
 func (r *Request) parse(data []byte) (int, error) {
 	switch r.state {
 	case requestStateInitialized:
-		reqLine, bytesRead, _, err := parseRequestLine(string(data))
+		reqLine, bytesRead, err := parseRequestLine(data)
 		if err != nil {
 			return 0, err
 		}
@@ -71,12 +67,12 @@ func (r *Request) parse(data []byte) (int, error) {
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
-	buffer := make([]byte, 0, bufferSize)
+	buffer := make([]byte, 0, constraints.BufferSize)
 	readToIndex := 0
 	request := newRequest()
 
 	for request.state != requestStateDone {
-		tmpBuf := make([]byte, bufferSize)
+		tmpBuf := make([]byte, constraints.BufferSize)
 		n, readErr := reader.Read(tmpBuf)
 		if readErr != nil && readErr != io.EOF {
 			return nil, readErr

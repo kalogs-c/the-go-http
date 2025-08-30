@@ -1,9 +1,12 @@
 package headers
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/kalogs-c/the-go-http/internal/constraints"
 )
 
 type Headers map[string]string
@@ -12,16 +15,14 @@ func NewHeaders() Headers {
 	return make(map[string]string)
 }
 
-const crlf string = "\r\n"
-
 var (
 	ErrorExtraSpaceBeforeColon = errors.New("extra space before colon")
 	ErrorInvalidCharOnFieldKey = errors.New("invalid char on field")
 )
 
-var allowedCharsSet map[rune]bool = craftAllowedChars()
+var allowedCharsSet map[rune]bool = craftAllowedCharSet()
 
-func craftAllowedChars() map[rune]bool {
+func craftAllowedCharSet() map[rune]bool {
 	allowedChars := "!#$%&'*+-.^_`|~"
 	for c := '0'; c <= '9'; c++ {
 		allowedChars += string(c)
@@ -64,17 +65,18 @@ func validateHeaderField(field string) error {
 	return nil
 }
 
-func (h Headers) Parse(data []byte) (n int, done bool, err error) {
-	i := strings.Index(string(data), crlf)
+func (h Headers) Parse(data []byte) (int, bool, error) {
+	i := bytes.Index(data, constraints.CRLF)
 	switch i {
 	case 0: // End of headers
-		return len(crlf), true, nil
+		return len(constraints.CRLF), true, nil
 	case -1: // Incomplete headers
 		return 0, false, nil
 	}
 
 	rawContent := strings.TrimSpace(string(data[:i]))
 	parts := strings.SplitN(rawContent, ":", 2)
+
 	if err := validateHeaderField(parts[0]); err != nil {
 		return 0, false, err
 	}
@@ -88,5 +90,5 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		h[field] = value
 	}
 
-	return i + len(crlf), false, nil
+	return i + len(constraints.CRLF), false, nil
 }
