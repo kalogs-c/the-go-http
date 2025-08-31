@@ -20,13 +20,13 @@ var (
 	ErrorHttpVersionNotAllowed error = errors.New("http version is not suported")
 )
 
-func isMethodAllowed(method string) bool {
+func methodAllowed(method string) bool {
 	return !strings.ContainsFunc(method, func(c rune) bool {
 		return (c < 'A' || c > 'Z')
 	})
 }
 
-func isHttpVersionAllowed(httpVersion string) bool {
+func httpVersionAllowed(httpVersion string) bool {
 	return httpVersion == "1.1"
 }
 
@@ -50,11 +50,11 @@ func parseRequestLine(data []byte) (*RequestLine, int, error) {
 		HttpVersion:   versionParts[1],
 	}
 
-	if !isMethodAllowed(requestLine.Method) {
+	if !methodAllowed(requestLine.Method) {
 		return nil, 0, ErrorMethodNotAllowed
 	}
 
-	if !isHttpVersionAllowed(requestLine.HttpVersion) {
+	if !httpVersionAllowed(requestLine.HttpVersion) {
 		return nil, 0, ErrorHttpVersionNotAllowed
 	}
 

@@ -2,7 +2,9 @@ package request
 
 import (
 	"errors"
+	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/kalogs-c/the-go-http/internal/constraints"
 	"github.com/kalogs-c/the-go-http/internal/headers"
@@ -13,6 +15,7 @@ type requestState int
 const (
 	requestStateInitialized requestState = iota
 	requestStateParsingHeaders
+	requestStateParsingBody
 	requestStateDone
 )
 
@@ -57,8 +60,34 @@ func (r *Request) parse(data []byte) (int, error) {
 			return bytesRead, nil
 		}
 
-		r.state = requestStateDone
+		r.state = requestStateParsingBody
 		return bytesRead, nil
+	case requestStateParsingBody:
+		contentLengthStr, ok := r.Headers.Get("Content-Length")
+		if !ok {
+			r.state = requestStateDone
+			return 0, nil
+		}
+
+		contentLength, err := strconv.Atoi(contentLengthStr)
+		if err != nil {
+			return 0, err
+		}
+
+		r.Body = append(r.Body, data...)
+		if len(r.Body) > contentLength {
+			return 0, errors.New("body bigger than Content-Length passed")
+		}
+
+		if len(r.Body) == contentLength {
+			r.state = requestStateDone
+		}
+
+		if len(data) == 0 && len(r.Body) < contentLength {
+			return 0, fmt.Errorf("body length mismatch: expected %d, got %d", contentLength, len(r.Body))
+		}
+
+		return len(data), nil
 	case requestStateDone:
 		return 0, ErrorReadOnDoneState
 	default:
@@ -68,7 +97,6 @@ func (r *Request) parse(data []byte) (int, error) {
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
 	buffer := make([]byte, 0, constraints.BufferSize)
-	readToIndex := 0
 	request := newRequest()
 
 	for request.state != requestStateDone {
@@ -80,7 +108,6 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 
 		buffer = append(buffer, tmpBuf[:n]...)
 
-		readToIndex = n
 		n, err := request.parse(buffer)
 		if err != nil && err != io.EOF {
 			return nil, err
@@ -92,7 +119,6 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 
 		if n > 0 {
 			buffer = buffer[n:]
-			readToIndex -= n
 		}
 	}
 

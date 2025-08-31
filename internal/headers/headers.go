@@ -65,6 +65,22 @@ func validateHeaderField(field string) error {
 	return nil
 }
 
+func (h Headers) Get(key string) (string, bool) {
+	value, ok := h[strings.ToLower(key)]
+	return value, ok
+}
+
+func (h Headers) Set(key, value string) {
+	key = strings.TrimSpace(strings.ToLower(key))
+	value = strings.TrimSpace(value)
+
+	if _, ok := h[key]; ok {
+		h[key] += ", " + value
+	} else {
+		h[key] = value
+	}
+}
+
 func (h Headers) Parse(data []byte) (int, bool, error) {
 	i := bytes.Index(data, constraints.CRLF)
 	switch i {
@@ -81,14 +97,9 @@ func (h Headers) Parse(data []byte) (int, bool, error) {
 		return 0, false, err
 	}
 
-	field := strings.TrimSpace(strings.ToLower(parts[0]))
-	value := strings.TrimSpace(parts[1])
-
-	if _, ok := h[field]; ok {
-		h[field] += ", " + value
-	} else {
-		h[field] = value
-	}
+	key := parts[0]
+	value := parts[1]
+	h.Set(key, value)
 
 	return i + len(constraints.CRLF), false, nil
 }
